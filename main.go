@@ -56,17 +56,17 @@ func main() {
 		glog.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
-	networkClient, err := clientset.NewForConfig(cfg)
+	mydemoClient, err := clientset.NewForConfig(cfg)
 	if err != nil {
 		glog.Fatalf("Error building example clientset: %s", err.Error())
 	}
 
-	networkInformerFactory := informers.NewSharedInformerFactory(networkClient, time.Second*30)
+	mydemoInformerFactory := informers.NewSharedInformerFactory(mydemoClient, time.Second*30)
 
-	controller := NewController(kubeClient, networkClient,
-		networkInformerFactory.Crddemo().V1().Mydemos())
+	controller := NewController(kubeClient, mydemoClient,
+		mydemoInformerFactory.Crddemo().V1().Mydemos())
 
-	go networkInformerFactory.Start(stopCh)
+	go mydemoInformerFactory.Start(stopCh)
 
 	if err = controller.Run(2, stopCh); err != nil {
 		glog.Fatalf("Error running controller: %s", err.Error())
