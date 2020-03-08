@@ -29,17 +29,16 @@ const controllerAgentName = "mydemo-controller"
 const (
 	SuccessSynced = "Synced"
 
-	MessageResourceSynced = "Network synced successfully"
+	MessageResourceSynced = "Mydemo synced successfully"
 )
 
 type Controller struct {
 	// kubeclientset is a standard kubernetes clientset
-	kubeclientset kubernetes.Interface
-	// networkclientset is a clientset for our own API group
-	networkclientset clientset.Interface
+	kubeclientset   kubernetes.Interface
+	mydemoslientset clientset.Interface
 
-	demoInformer   listers.MydemoLister
-	networksSynced cache.InformerSynced
+	demoInformer  listers.MydemoLister
+	mydemosSynced cache.InformerSynced
 
 	// workqueue is a rate limited work queue. This is used to queue work to be
 	// processed instead of performing it as soon as a change happens. This
@@ -52,10 +51,10 @@ type Controller struct {
 	recorder record.EventRecorder
 }
 
-// NewController returns a new network controller
+// NewController returns a new mydemo controller
 func NewController(
 	kubeclientset kubernetes.Interface,
-	networkclientset clientset.Interface,
+	mydemoslientset clientset.Interface,
 	mydemoInformer informers.MydemoInformer) *Controller {
 
 	// Create event broadcaster
@@ -69,29 +68,26 @@ func NewController(
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 
 	controller := &Controller{
-		kubeclientset:    kubeclientset,
-		networkclientset: networkclientset,
-		demoInformer:     mydemoInformer.Lister(),
-		networksSynced:   mydemoInformer.Informer().HasSynced,
-		workqueue:        workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Networks"),
-		recorder:         recorder,
+		kubeclientset:   kubeclientset,
+		mydemoslientset: mydemoslientset,
+		demoInformer:    mydemoInformer.Lister(),
+		mydemosSynced:   mydemoInformer.Informer().HasSynced,
+		workqueue:       workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Mydemos"),
+		recorder:        recorder,
 	}
 
-	glog.Info("Setting up event handlers")
-	// Set up an event handler for when Network resources change
+	glog.Info("Setting up mydemo event handlers")
 	mydemoInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: controller.enqueueNetwork,
+		AddFunc: controller.enqueueMydemo,
 		UpdateFunc: func(old, new interface{}) {
-			oldNetwork := old.(*samplecrdv1.Mydemo)
-			newNetwork := new.(*samplecrdv1.Mydemo)
-			if oldNetwork.ResourceVersion == newNetwork.ResourceVersion {
-				// Periodic resync will send update events for all known Networks.
-				// Two different versions of the same Network will always have different RVs.
+			oldMydemo := old.(*samplecrdv1.Mydemo)
+			newMydemo := new.(*samplecrdv1.Mydemo)
+			if oldMydemo.ResourceVersion == newMydemo.ResourceVersion {
 				return
 			}
-			controller.enqueueNetwork(new)
+			controller.enqueueMydemo(new)
 		},
-		DeleteFunc: controller.enqueueNetworkForDelete,
+		DeleteFunc: controller.enqueueMydemoForDelete,
 	})
 
 	return controller
@@ -106,16 +102,15 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	defer c.workqueue.ShutDown()
 
 	// Start the informer factories to begin populating the informer caches
-	glog.Info("Starting Network control loop")
+	glog.Info("Starting Mydemo control loop")
 
 	// Wait for the caches to be synced before starting workers
 	glog.Info("Waiting for informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.networksSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, c.mydemosSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 
 	glog.Info("Starting workers")
-	// Launch two workers to process Network resources
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(c.runWorker, time.Second, stopCh)
 	}
@@ -169,7 +164,7 @@ func (c *Controller) processNextWorkItem() bool {
 			return nil
 		}
 		// Run the syncHandler, passing it the namespace/name string of the
-		// Network resource to be synced.
+		// Mydemo resource to be synced.
 		if err := c.syncHandler(key); err != nil {
 			return fmt.Errorf("error syncing '%s': %s", key, err.Error())
 		}
@@ -189,7 +184,7 @@ func (c *Controller) processNextWorkItem() bool {
 }
 
 // syncHandler compares the actual state with the desired, and attempts to
-// converge the two. It then updates the Status block of the Network resource
+// converge the two. It then updates the Status block of the Mydemo resource
 // with the current status of the resource.
 func (c *Controller) syncHandler(key string) error {
 	// Convert the namespace/name string into a distinct namespace and name
@@ -199,49 +194,35 @@ func (c *Controller) syncHandler(key string) error {
 		return nil
 	}
 
-	// Get the Network resource with this namespace/name
-	network, err := c.demoInformer.Mydemos(namespace).Get(name)
+	// Get the Mydemo resource with this namespace/name
+	mydemo, err := c.demoInformer.Mydemos(namespace).Get(name)
 	if err != nil {
-		// The Network resource may no longer exist, in which case we stop
+		// The Mydemo resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			glog.Warningf("Network: %s/%s does not exist in local cache, will delete it from Neutron ...",
+			glog.Warningf("DemoCRD: %s/%s does not exist in local cache, will delete it from Mydemo ...",
 				namespace, name)
 
-			glog.Infof("[Neutron] Deleting network: %s/%s ...", namespace, name)
-
-			// FIX ME: call Neutron API to delete this network by name.
-			//
-			// neutron.Delete(namespace, name)
+			glog.Infof("[DemoCRD] Deleting mydemo: %s/%s ...", namespace, name)
 
 			return nil
 		}
 
-		runtime.HandleError(fmt.Errorf("failed to list network by: %s/%s", namespace, name))
+		runtime.HandleError(fmt.Errorf("failed to list mydemo by: %s/%s", namespace, name))
 
 		return err
 	}
 
-	glog.Infof("[Neutron] Try to process network: %#v ...", network)
+	glog.Infof("[DemoCRD] Try to process mydemo: %#v ...", mydemo)
 
-	// FIX ME: Do diff().
-	//
-	// actualNetwork, exists := neutron.Get(namespace, name)
-	//
-	// if !exists {
-	// 	neutron.Create(namespace, name)
-	// } else if !reflect.DeepEqual(actualNetwork, network) {
-	// 	neutron.Update(namespace, name)
-	// }
-
-	c.recorder.Event(network, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
+	c.recorder.Event(mydemo, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
 }
 
-// enqueueNetwork takes a Network resource and converts it into a namespace/name
+// enqueueMydemo takes a Mydemo resource and converts it into a namespace/name
 // string which is then put onto the work queue. This method should *not* be
-// passed resources of any type other than Network.
-func (c *Controller) enqueueNetwork(obj interface{}) {
+// passed resources of any type other than Mydemo.
+func (c *Controller) enqueueMydemo(obj interface{}) {
 	var key string
 	var err error
 	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
@@ -251,10 +232,10 @@ func (c *Controller) enqueueNetwork(obj interface{}) {
 	c.workqueue.AddRateLimited(key)
 }
 
-// enqueueNetworkForDelete takes a deleted Network resource and converts it into a namespace/name
+// enqueueMydemoForDelete takes a deleted Mydemo resource and converts it into a namespace/name
 // string which is then put onto the work queue. This method should *not* be
-// passed resources of any type other than Network.
-func (c *Controller) enqueueNetworkForDelete(obj interface{}) {
+// passed resources of any type other than Mydemo.
+func (c *Controller) enqueueMydemoForDelete(obj interface{}) {
 	var key string
 	var err error
 	key, err = cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
