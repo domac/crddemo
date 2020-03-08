@@ -73,3 +73,27 @@ client
             ├── expansion_generated.go
             └── mydemo.go
 ```
+
+## 编译项目
+
+```bash
+$ make 
+
+... ...
+
+gofmt -w .
+go test -v . 
+?       github.com/domac/crddemo        [no test files]
+mkdir -p releases
+GOOS=linux GOARCH=amd64 go build -mod=vendor -ldflags "-s -w" -v -o releases/crddemo *.go
+github.com/golang/groupcache/lru
+k8s.io/apimachinery/third_party/forked/golang/json
+k8s.io/apimachinery/pkg/util/mergepatch
+k8s.io/kube-openapi/pkg/util/proto
+k8s.io/client-go/tools/record/util
+k8s.io/apimachinery/pkg/util/strategicpatch
+k8s.io/client-go/tools/record
+command-line-arguments
+go clean -i
+... ...
+```
