@@ -1,4 +1,4 @@
-module crddemo
+module github.com/domac/crddemo
 
 go 1.14
 
