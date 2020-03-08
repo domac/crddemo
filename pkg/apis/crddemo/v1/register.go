@@ -1,7 +1,7 @@
 package v1
 
 import (
-	"github.com/domac/crddemo/pkg/apis/crddemo"
+	"crddemo/pkg/apis/crddemo"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
