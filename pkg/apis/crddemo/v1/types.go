@@ -6,7 +6,7 @@ import (
 
 // +genclient
 // +genclient:noStatus
-// +k8s:deepcopy-gen:interfaces=k8s.io/crddemo/pkg/runtime.Object
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Mydemo describes a Mydemo resource
 type Mydemo struct {
@@ -22,7 +22,7 @@ type MydemoSpec struct {
 	Port int    `json:"port"`
 }
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/crddemo/pkg/runtime.Object
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type MydemoList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
