@@ -239,4 +239,4 @@ $  kubectl get Mydemo
 No resources found in default namespace.
 ```
 
-以上，就是编写和使用自定义控制器的全部流程了。
+以上就是使用自定义控制器的基本开发流程
